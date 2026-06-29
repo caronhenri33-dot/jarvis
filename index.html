@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    color: #00d4ff;
+    font-family: 'Courier New', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  #top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0,0,0,0.5);
+    border-bottom: 1px solid #00d4ff33;
+    z-index: 100;
+  }
+  #top-bar .title {
+    font-size: 18px;
+    letter-spacing: 8px;
+    color: #00d4ff;
+    text-shadow: 0 0 20px #00d4ff;
+  }
+  #status {
+    font-size: 11px;
+    color: #00ff88;
+    letter-spacing: 2px;
+  }
+  #time {
+    font-size: 13px;
+    color: #00d4ff88;
+    letter-spacing: 3px;
+  }
+  canvas {
+    display: block;
+    filter: drop-shadow(0 0 30px #00d4ff88);
+  }
+  #chat-box {
+    position: fixed;
+    bottom: 120px;
+    left: 20px; right: 20px;
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .msg {
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 90%;
+    animation: fadeIn 0.3s ease;
+  }
+  .msg.user {
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid #00d4ff44;
+    color: #00d4ff;
+    align-self: flex-end;
+  }
+  .msg.jarvis {
+    background: rgba(0, 255, 136, 0.08);
+    border: 1px solid #00ff8844;
+    color: #00ff88;
+    align-self: flex-start;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  #controls {
+    position: fixed;
+    bottom: 20px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 0 20px;
+  }
+  #input-zone {
+    flex: 1;
+    max-width: 300px;
+    background: rgba(0, 212, 255, 0.05);
+    border: 1px solid #00d4ff44;
+    border-radius: 25px;
+    padding: 12px 20px;
+    color: #00d4ff;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    outline: none;
+  }
+  #input-zone::placeholder { color: #00d4ff44; }
+  .btn {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    border: 1px solid #00d4ff66;
+    background: rgba(0, 212, 255, 0.1);
+    color: #00d4ff;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+  }
+  .btn:active {
+    background: rgba(0, 212, 255, 0.3);
+    box-shadow: 0 0 20px #00d4ff;
+    transform: scale(0.95);
+  }
+  .btn.recording {
+    background: rgba(255, 50, 50, 0.3);
+    border-color: #ff3232;
+    color: #ff3232;
+    box-shadow: 0 0 20px #ff323288;
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+  #loading {
+    display: none;
+    position: fixed;
+    bottom: 130px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #00d4ff88;
+    letter-spacing: 3px;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  #api-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+  }
+  #api-modal .box {
+    background: #0a0a0a;
+    border: 1px solid #00d4ff44;
+    border-radius: 12px;
+    padding: 30px;
+    width: 90%;
+    max-width: 350px;
+    text-align: center;
+  }
+  #api-modal h2 {
+    font-size: 16px;
+    letter-spacing: 4px;
+    margin-bottom: 20px;
+    color: #00d4ff;
+  }
+  #api-modal p {
+    font-size: 12px;
+    color: #00d4ff88;
+    margin-bottom: 15px;
+    line-height: 1.6;
+  }
+  #api-key-input {
+    width: 100%;
+    background: rgba(0,212,255,0.05);
+    border: 1px solid #00d4ff44;
+    border-radius: 8px;
+    padding: 12px;
+    color: #00d4ff;
+    font-family: monospace;
+    font-size: 12px;
+    outline: none;
+    margin-bottom: 15px;
+  }
+  #save-key-btn {
+    width: 100%;
+    padding: 12px;
+    background: rgba(0,212,255,0.15);
+    border: 1px solid #00d4ff66;
+    border-radius: 8px;
+    color: #00d4ff;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 2px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- Barre du haut -->
+<div id="top-bar">
+  <div class="title">JARVIS</div>
+  <div id="status">● EN LIGNE</div>
+  <div id="time">00:00:00</div>
+</div>
+
+<!-- Orbe animée -->
+<canvas id="orb" width="300" height="300"></canvas>
+
+<!-- Zone de chargement -->
+<div id="loading">JARVIS RÉFLÉCHIT...</div>
+
+<!-- Messages -->
+<div id="chat-box"></div>
+
+<!-- Contrôles -->
+<div id="controls">
+  <button class="btn" id="cam-btn" title="Caméra">📷</button>
+  <input type="text" id="input-zone" placeholder="Parle à Jarvis...">
+  <button class="btn" id="mic-btn" title="Micro">🎤</button>
+  <button class="btn" id="send-btn" title="Envoyer">➤</button>
+</div>
+
+<!-- Modal clé API -->
+<div id="api-modal">
+  <div class="box">
+    <h2>🔐 CLÉ API</h2>
+    <p>Entre ta clé API Anthropic pour activer Jarvis.</p>
+    <p>Tu peux la créer sur console.anthropic.com</p>
+    <input type="password" id="api-key-input" placeholder="sk-ant-...">
+    <button id="save-key-btn" onclick="saveKey()">ACTIVER JARVIS</button>
+  </div>
+</div>
+
+<script>
+// ==================== CLÉ API ====================
+let API_KEY = localStorage.getItem('jarvis_api_key') || '';
+
+function saveKey() {
+  const k = document.getElementById('api-key-input').value.trim();
+  if (!k) return;
+  API_KEY = k;
+  localStorage.setItem('jarvis_api_key', k);
+  document.getElementById('api-modal').style.display = 'none';
+  addMessage('jarvis', 'Bonjour. Je suis Jarvis. Comment puis-je vous aider ?');
+}
+
+if (API_KEY) {
+  document.getElementById('api-modal').style.display = 'none';
+  addMessage('jarvis', 'Bonjour. Je suis Jarvis. Comment puis-je vous aider ?');
+}
+
+// ==================== HORLOGE ====================
+function updateTime() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('time').textContent = `${h}:${m}:${s}`;
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+// ==================== ORBE ANIMÉE ====================
+const canvas = document.getElementById('orb');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const cx = W / 2, cy = H / 2;
+
+let particles = [];
+let orbActive = false;
+
+for (let i = 0; i < 200; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = 80 + Math.random() * 40;
+  particles.push({
+    angle,
+    radius,
+    speed: 0.005 + Math.random() * 0.01,
+    size: 0.5 + Math.random() * 2,
+    opacity: 0.3 + Math.random() * 0.7,
+    wobble: Math.random() * Math.PI * 2,
+    wobbleSpeed: 0.02 + Math.random() * 0.03,
+    y: (Math.random() - 0.5) * 80,
+  });
+}
+
+function drawOrb() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Halo central
+  const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 80);
+  grd.addColorStop(0, 'rgba(0, 212, 255, 0.15)');
+  grd.addColorStop(1, 'rgba(0, 212, 255, 0)');
+  ctx.beginPath();
+  ctx.arc(cx, cy, 80, 0, Math.PI * 2);
+  ctx.fillStyle = grd;
+  ctx.fill();
+
+  // Cercle central
+  ctx.beginPath();
+  ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+  ctx.fillStyle = orbActive ? '#ffffff' : '#00d4ff';
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = '#00d4ff';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Particules
+  particles.forEach(p => {
+    p.angle += p.speed;
+    p.wobble += p.wobbleSpeed;
+
+    const r = p.radius + Math.sin(p.wobble) * 15;
+    const x = cx + Math.cos(p.angle) * r;
+    const y = cy + Math.sin(p.angle) * r * 0.35 + p.y * 0.1;
+
+    ctx.beginPath();
+    ctx.arc(x, y, p.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(0, 212, 255, ${p.opacity})`;
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#00d4ff';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  requestAnimationFrame(drawOrb);
+}
+drawOrb();
+
+// ==================== MESSAGES ====================
+function addMessage(who, text) {
+  const box = document.getElementById('chat-box');
+  const div = document.createElement('div');
+  div.className = `msg ${who}`;
+  div.textContent = who === 'jarvis' ? `◈ ${text}` : `➤ ${text}`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ==================== IA CLAUDE ====================
+let history = [];
+
+async function askJarvis(message) {
+  if (!API_KEY) {
+    document.getElementById('api-modal').style.display = 'flex';
+    return;
+  }
+
+  orbActive = true;
+  document.getElementById('loading').style.display = 'block';
+  history.push({ role: 'user', content: message });
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 500,
+        system: "Tu es Jarvis, un assistant IA élite. Réponds toujours en français, de manière précise et concise. Tu as une personnalité calme et professionnelle comme dans Iron Man.",
+        messages: history
+      })
+    });
+
+    const data = await res.json();
+    const reply = data.content[0].text;
+    history.push({ role: 'assistant', content: reply });
+    addMessage('jarvis', reply);
+    speak(reply);
+
+  } catch (e) {
+    addMessage('jarvis', 'Erreur de connexion. Vérifie ta clé API.');
+  }
+
+  orbActive = false;
+  document.getElementById('loading').style.display = 'none';
+}
+
+// ==================== ENVOI ====================
+document.getElementById('send-btn').onclick = () => {
+  const inp = document.getElementById('input-zone');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  addMessage('user', txt);
+  inp.value = '';
+  askJarvis(txt);
+};
+
+document.getElementById('input-zone').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('send-btn').click();
+});
+
+// ==================== VOIX ====================
+function speak(text) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'fr-FR';
+  u.rate = 0.9;
+  u.pitch = 0.8;
+  window.speechSynthesis.speak(u);
+}
+
+const micBtn = document.getElementById('mic-btn');
+let recognition;
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'fr-FR';
+  recognition.continuous = false;
+
+  recognition.onresult = (e) => {
+    const txt = e.results[0][0].transcript;
+    document.getElementById('input-zone').value = txt;
+    addMessage('user', txt);
+    askJarvis(txt);
+  };
+
+  recognition.onend = () => micBtn.classList.remove('recording');
+} else {
+  micBtn.style.opacity = '0.3';
+}
+
+micBtn.onclick = () => {
+  if (!recognition) return;
+  micBtn.classList.toggle('recording');
+  if (micBtn.classList.contains('recording')) {
+    recognition.start();
+  } else {
+    recognition.stop();
+  }
+};
+
+// ==================== CAMÉRA ====================
+document.getElementById('cam-btn').onclick = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.play();
+
+    setTimeout(() => {
+      const c = document.createElement('canvas');
+      c.width = 320; c.height = 240;
+      c.getContext('2d').drawImage(video, 0, 0);
+      const img = c.toDataURL('image/jpeg', 0.8).split(',')[1];
+      stream.getTracks().forEach(t => t.stop());
+      analyzeImage(img);
+    }, 1500);
+
+  } catch(e) {
+    addMessage('jarvis', 'Accès caméra refusé. Autorise-le dans les paramètres.');
+  }
+};
+
+async function analyzeImage(base64) {
+  if (!API_KEY) return;
+  orbActive = true;
+  document.getElementById('loading').style.display = 'block';
+  addMessage('user', '📷 Image envoyée à Jarvis...');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 }},
+            { type: 'text', text: 'Analyse cette image et décris ce que tu vois en français, comme Jarvis d\'Iron Man.' }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const reply = data.content[0].text;
+    history.push({ role: 'assistant', content: reply });
+    addMessage('jarvis', reply);
+    speak(reply);
+
+  } catch(e) {
+    addMessage('jarvis', 'Erreur lors de l\'analyse de l\'image.');
+  }
+
+  orbActive = false;
+  document.getElementById('loading').style.display = 'none';
+}
+</script>
+</body>
+</html>
